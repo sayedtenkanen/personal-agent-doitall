@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Chat — Personal Work Agent{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+  <h1>💬 Chat</h1>
+  <form method="post" action="/chat/new" style="margin:0;">
+    <input type="hidden" name="title" value="New Chat">
+    <button type="submit" class="btn btn-primary">+ New Chat</button>
+  </form>
+</div>
+
+{% if not llm_available %}
+<div class="flash-warning">
+  <strong>No LLM configured.</strong>
+  Set <code>AGENT_LLM_PROVIDER</code> to <code>ollama</code> or <code>openai</code> in your environment or <code>.env</code> file.
+  <br>
+  <small>
+    Ollama (local): <code>AGENT_LLM_PROVIDER=ollama AGENT_LLM_MODEL=llama3.2</code><br>
+    OpenAI-compatible: <code>AGENT_LLM_PROVIDER=openai AGENT_LLM_BASE_URL=https://api.openai.com/v1 AGENT_LLM_API_KEY=sk-…</code>
+  </small>
+</div>
+{% else %}
+<div class="card" style="padding:.75rem 1.25rem;margin-bottom:1rem;background:#f0fdf4;border:1px solid #bbf7d0;">
+  <span class="badge badge-green">● Connected</span>
+  Provider: <strong>{{ llm_provider }}</strong> &nbsp;·&nbsp; Model: <strong>{{ llm_model }}</strong>
+</div>
+{% endif %}
+
+{% if sessions %}
+<div class="card" style="padding:0;">
+  <table>
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Started</th>
+        <th>Last Active</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in sessions %}
+      <tr>
+        <td><a href="/chat/{{ s.id }}">{{ s.title }}</a></td>
+        <td class="mono">{{ s.created_at | string | truncate(19, True, "") }}</td>
+        <td class="mono">{{ s.updated_at | string | truncate(19, True, "") }}</td>
+        <td>
+          <form method="post" action="/chat/{{ s.id }}/delete" style="margin:0;" onsubmit="return confirm('Delete this chat?')">
+            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card" style="color:#999;text-align:center;padding:2rem;">
+  No chat sessions yet — click <strong>+ New Chat</strong> to start.
+</div>
+{% endif %}
+{% endblock %}

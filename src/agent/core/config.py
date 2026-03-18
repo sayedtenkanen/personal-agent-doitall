@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     port: int = 8000
     log_level: str = "info"
 
+    # LLM settings — provider is "none" by default (no LLM)
+    llm_provider: str = "none"  # none | ollama | openai
+    llm_model: str = "llama3.2"
+    llm_base_url: str = "http://localhost:11434"  # Ollama default; override for OpenAI
+    llm_api_key: str = ""  # only needed for openai provider
+
     @field_validator("data_dir", mode="before")
     @classmethod
     def resolve_data_dir(cls, v: object) -> Path:

@@ -61,6 +61,7 @@ def init_db() -> None:
     """Create all tables if they don't exist (idempotent)."""
     # Import models so Base sees them before create_all.
     import agent.core.artifacts  # noqa: F401
+    import agent.core.chat  # noqa: F401
 
     Base.metadata.create_all(bind=_get_engine())
 

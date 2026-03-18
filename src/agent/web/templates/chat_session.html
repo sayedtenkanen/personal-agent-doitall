@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}{{ chat_session.title }} — Chat{% endblock %}
+{% block content %}
+<style>
+  .chat-wrap { display: flex; flex-direction: column; height: calc(100vh - 180px); }
+  .chat-header { display: flex; align-items: center; gap: 1rem; margin-bottom: .75rem; }
+  .chat-history { flex: 1; overflow-y: auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; display: flex; flex-direction: column; gap: .75rem; }
+  .msg { max-width: 80%; padding: .65rem 1rem; border-radius: 10px; font-size: .9rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+  .msg-user { align-self: flex-end; background: #2563eb; color: #fff; border-bottom-right-radius: 2px; }
+  .msg-assistant { align-self: flex-start; background: #f3f4f6; color: #111; border-bottom-left-radius: 2px; }
+  .msg-system { align-self: center; background: #fef9c3; color: #92400e; font-size:.8rem; border-radius: 4px; padding:.3rem .75rem; }
+  .msg-error { align-self: center; background: #fee2e2; color: #b91c1c; font-size:.85rem; border-radius: 4px; padding:.45rem 1rem; }
+  .msg-typing { align-self: flex-start; background: #f3f4f6; color: #999; font-style: italic; border-radius: 10px; padding: .65rem 1rem; font-size:.85rem; }
+  .chat-input-row { display: flex; gap: .5rem; margin-top: .75rem; }
+  .chat-input-row textarea { flex: 1; resize: none; height: 60px; border-radius: 8px; padding: .6rem .85rem; font-size: .9rem; border: 1px solid #d1d5db; font-family: inherit; }
+  .chat-input-row button { align-self: flex-end; height: 60px; padding: 0 1.5rem; }
+</style>
+
+<div class="chat-wrap">
+  <div class="chat-header">
+    <a href="/chat" class="btn btn-ghost btn-sm">← Back</a>
+    <h2 style="margin:0;flex:1;">{{ chat_session.title }}</h2>
+    {% if llm_available %}
+      <span class="badge badge-green">{{ llm_provider }} · {{ llm_model }}</span>
+    {% else %}
+      <span class="badge badge-red">No LLM configured</span>
+    {% endif %}
+  </div>
+
+  <div class="chat-history" id="chat-history">
+    {% if not messages %}
+    <div class="msg msg-system">Start the conversation below.</div>
+    {% endif %}
+    {% for m in messages %}
+      <div class="msg msg-{{ m.role }}">{{ m.content }}</div>
+    {% endfor %}
+  </div>
+
+  {% if not llm_available %}
+  <div class="flash-warning" style="margin-top:.75rem;">
+    <strong>No LLM provider configured.</strong>
+    Set <code>AGENT_LLM_PROVIDER</code> in your environment or <code>.env</code> file.
+  </div>
+  {% else %}
+  <div class="chat-input-row">
+    <textarea id="msg-input" placeholder="Type a message… (Enter to send, Shift+Enter for newline)" rows="2"></textarea>
+    <button class="btn btn-primary" onclick="sendMessage()" id="send-btn">Send</button>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+  const SESSION_ID = "{{ chat_session.id }}";
+  const history = document.getElementById("chat-history");
+
+  function scrollBottom() {
+    history.scrollTop = history.scrollHeight;
+  }
+  scrollBottom();
+
+  function appendMsg(role, text) {
+    const div = document.createElement("div");
+    div.className = "msg msg-" + role;
+    div.textContent = text;
+    history.appendChild(div);
+    scrollBottom();
+    return div;
+  }
+
+  async function sendMessage() {
+    const input = document.getElementById("msg-input");
+    const btn = document.getElementById("send-btn");
+    const msg = input.value.trim();
+    if (!msg) return;
+
+    input.value = "";
+    input.disabled = true;
+    btn.disabled = true;
+
+    appendMsg("user", msg);
+    const typing = appendMsg("typing", "Thinking…");
+
+    try {
+      const resp = await fetch("/chat/" + SESSION_ID + "/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg }),
+      });
+      typing.remove();
+      const data = await resp.json();
+      if (resp.ok) {
+        appendMsg("assistant", data.reply);
+      } else {
+        appendMsg("error", "Error: " + (data.error || resp.statusText));
+      }
+    } catch (err) {
+      typing.remove();
+      appendMsg("error", "Network error: " + err.message);
+    } finally {
+      input.disabled = false;
+      btn.disabled = false;
+      input.focus();
+    }
+  }
+
+  document.getElementById("msg-input")?.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+</script>
+{% endblock %}

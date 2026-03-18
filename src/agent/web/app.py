@@ -332,3 +332,125 @@ async def conflicts_resolve(conflict_id: str, note: str = Form("")):
         resolve_conflict(session, conflict_record=record, resolution_note=note)
 
     return RedirectResponse("/conflicts", status_code=303)
+
+
+# ---------------------------------------------------------------------------
+# Chat
+# ---------------------------------------------------------------------------
+
+
+@app.get("/chat", response_class=HTMLResponse)
+async def chat_list(request: Request):
+    from agent.core.chat import list_sessions
+    from agent.core.llm import is_available
+    from agent.core import config as _config
+
+    with get_session() as session:
+        sessions = list_sessions(session)
+
+    return templates.TemplateResponse(
+        "chat.html",
+        _ctx(
+            request,
+            sessions=sessions,
+            llm_available=is_available(),
+            llm_provider=_config.settings.llm_provider,
+            llm_model=_config.settings.llm_model,
+        ),
+    )
+
+
+@app.post("/chat/new")
+async def chat_new(title: str = Form("New Chat")):
+    from agent.core.chat import create_session
+
+    with get_session() as session:
+        chat_session = create_session(session, title=title)
+        session_id = chat_session.id
+
+    return RedirectResponse(f"/chat/{session_id}", status_code=303)
+
+
+@app.get("/chat/{session_id}", response_class=HTMLResponse)
+async def chat_session_view(request: Request, session_id: str):
+    from agent.core.chat import get_session_by_id, get_messages
+    from agent.core.llm import is_available
+    from agent.core import config as _config
+
+    with get_session() as session:
+        chat_session = get_session_by_id(session, session_id)
+        if chat_session is None:
+            raise HTTPException(status_code=404, detail="Chat session not found")
+        messages = get_messages(session, session_id)
+
+    return templates.TemplateResponse(
+        "chat_session.html",
+        _ctx(
+            request,
+            chat_session=chat_session,
+            messages=messages,
+            llm_available=is_available(),
+            llm_provider=_config.settings.llm_provider,
+            llm_model=_config.settings.llm_model,
+        ),
+    )
+
+
+@app.post("/chat/{session_id}/send")
+async def chat_send(request: Request, session_id: str):
+    """Receive a user message, call the LLM, persist both, return JSON."""
+    from fastapi.responses import JSONResponse
+    from agent.core.chat import get_session_by_id, add_message
+    from agent.core.llm import get_reply, build_system_prompt, LLMError, is_available
+    from agent.core.chat import get_messages
+
+    body = await request.json()
+    user_text: str = (body.get("message") or "").strip()
+    if not user_text:
+        return JSONResponse({"error": "Empty message."}, status_code=400)
+
+    if not is_available():
+        return JSONResponse(
+            {"error": "No LLM provider configured. Set AGENT_LLM_PROVIDER."},
+            status_code=503,
+        )
+
+    with get_session() as session:
+        chat_session = get_session_by_id(session, session_id)
+        if chat_session is None:
+            raise HTTPException(status_code=404)
+
+        # Persist user message.
+        add_message(session, session_id=session_id, role="user", content=user_text)
+
+        # Build messages list for LLM.
+        history = get_messages(session, session_id)
+        system_prompt = build_system_prompt(session)
+
+        llm_messages = [{"role": "system", "content": system_prompt}]
+        llm_messages += [{"role": m.role, "content": m.content} for m in history]
+
+        try:
+            reply = get_reply(llm_messages)
+        except LLMError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=502)
+
+        # Persist assistant reply.
+        add_message(session, session_id=session_id, role="assistant", content=reply)
+
+        # Update session title from first user message if still default.
+        if chat_session.title == "New Chat":
+            chat_session.title = user_text[:60]
+            session.add(chat_session)
+
+    return JSONResponse({"reply": reply})
+
+
+@app.post("/chat/{session_id}/delete")
+async def chat_delete(session_id: str):
+    from agent.core.chat import delete_session
+
+    with get_session() as session:
+        delete_session(session, session_id)
+
+    return RedirectResponse("/chat", status_code=303)

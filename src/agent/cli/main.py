@@ -565,3 +565,90 @@ def web(host: str | None, port: int | None, reload: bool):
         reload=reload,
         log_level=settings.log_level,
     )
+
+
+# ===========================================================================
+# agent chat
+# ===========================================================================
+
+
+@cli.command()
+@click.option("--session-id", "-s", default=None, help="Resume a specific session ID")
+@click.option("--title", "-t", default="New Chat", help="Title for a new session")
+def chat(session_id: str | None, title: str):
+    """Interactive chat REPL with your configured LLM."""
+    from agent.core.llm import get_reply, build_system_prompt, LLMError, is_available
+    from agent.core.chat import (
+        create_session,
+        get_session_by_id,
+        add_message,
+        get_messages,
+    )
+    from agent.core.config import settings
+
+    if not is_available():
+        error_console.print(
+            "[red]No LLM provider configured.[/red]\n"
+            "Set [bold]AGENT_LLM_PROVIDER[/bold] to [cyan]ollama[/cyan] or [cyan]openai[/cyan].\n\n"
+            "Examples:\n"
+            "  AGENT_LLM_PROVIDER=ollama AGENT_LLM_MODEL=llama3.2 agent chat\n"
+            "  AGENT_LLM_PROVIDER=openai AGENT_LLM_BASE_URL=https://api.openai.com/v1 "
+            "AGENT_LLM_API_KEY=sk-… agent chat"
+        )
+        sys.exit(1)
+
+    console.print(
+        f"[bold]Chat[/bold]  provider=[cyan]{settings.llm_provider}[/cyan]  "
+        f"model=[cyan]{settings.llm_model}[/cyan]"
+    )
+    console.print("[dim]Type your message. Press Ctrl+C or type /exit to quit.[/dim]\n")
+
+    with _get_session() as db:
+        if session_id:
+            chat_sess = get_session_by_id(db, session_id)
+            if chat_sess is None:
+                error_console.print(f"[red]Session not found:[/red] {session_id!r}")
+                sys.exit(1)
+            console.print(f"[dim]Resuming session: {chat_sess.title}[/dim]\n")
+            for m in get_messages(db, chat_sess.id):
+                colour = "blue" if m.role == "user" else "green"
+                prefix = "You" if m.role == "user" else "AI"
+                console.print(f"[{colour}]{prefix}:[/{colour}] {m.content}\n")
+        else:
+            chat_sess = create_session(db, title=title)
+
+        system_prompt = build_system_prompt(db)
+
+    # --- REPL loop ---
+    while True:
+        try:
+            user_input = console.input("[bold blue]You:[/bold blue] ").strip()
+        except (KeyboardInterrupt, EOFError):
+            console.print("\n[dim]Bye![/dim]")
+            break
+
+        if not user_input or user_input.lower() in ("/exit", "/quit"):
+            console.print("[dim]Bye![/dim]")
+            break
+
+        with _get_session() as db:
+            # Auto-title session from first message.
+            session_rec = get_session_by_id(db, chat_sess.id)
+            if session_rec and session_rec.title == "New Chat":
+                session_rec.title = user_input[:60]
+                db.add(session_rec)
+
+            add_message(db, session_id=chat_sess.id, role="user", content=user_input)
+            history = get_messages(db, chat_sess.id)
+            llm_messages = [{"role": "system", "content": system_prompt}]
+            llm_messages += [{"role": m.role, "content": m.content} for m in history]
+
+            try:
+                reply = get_reply(llm_messages)
+            except LLMError as exc:
+                error_console.print(f"[red]LLM error:[/red] {exc}")
+                continue
+
+            add_message(db, session_id=chat_sess.id, role="assistant", content=reply)
+
+        console.print(f"[bold green]AI:[/bold green] {reply}\n")
