@@ -27,9 +27,7 @@ from agent.core.storage import Base
 class ChatSession(Base):
     __tablename__ = "chat_sessions"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     title: Mapped[str] = mapped_column(String(512), nullable=False, default="New Chat")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
@@ -54,25 +52,19 @@ class ChatSession(Base):
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     session_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("chat_sessions.id", ondelete="CASCADE"),
         nullable=False,
     )
-    role: Mapped[str] = mapped_column(
-        String(16), nullable=False
-    )  # user|assistant|system
+    role: Mapped[str] = mapped_column(String(16), nullable=False)  # user|assistant|system
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 
-    session: Mapped["ChatSession"] = relationship(
-        "ChatSession", back_populates="messages"
-    )
+    session: Mapped["ChatSession"] = relationship("ChatSession", back_populates="messages")
 
     __table_args__ = (Index("ix_chat_messages_session_id", "session_id"),)
 
@@ -104,18 +96,20 @@ def add_message(db, *, session_id: str, role: str, content: str) -> ChatMessage:
 def list_sessions(db) -> list[ChatSession]:
     from sqlalchemy import select
 
-    return list(
-        db.execute(
-            select(ChatSession).order_by(ChatSession.updated_at.desc())
-        ).scalars()
-    )
+    return list(db.execute(select(ChatSession).order_by(ChatSession.updated_at.desc())).scalars())
 
 
 def get_session_by_id(db, session_id: str) -> Optional[ChatSession]:
+    """Look up a session by full UUID or unique 8-char prefix."""
     from sqlalchemy import select
 
+    if len(session_id) == 36:
+        return db.execute(
+            select(ChatSession).where(ChatSession.id == session_id)
+        ).scalar_one_or_none()
+    # Prefix match (same convention as artifacts/conflicts/links in CLI).
     return db.execute(
-        select(ChatSession).where(ChatSession.id == session_id)
+        select(ChatSession).where(ChatSession.id.startswith(session_id))
     ).scalar_one_or_none()
 
 

@@ -1,4 +1,4 @@
-# Personal Work Agent
+# Personal Agent - The Agent DoItAll
 
 Local-first personal all-purpose work agent. Runs identically on Windows and Linux.
 
@@ -10,15 +10,35 @@ Local-first personal all-purpose work agent. Runs identically on Windows and Lin
 - **Conflict detection** — stale concurrent edits become conflict copies for manual merge
 - **Hybrid retrieval** — lexical (BM25) + semantic (local embeddings) ranked recall
 - **CLI + Web UI** — full feature parity; web binds to `127.0.0.1` only
+- **LLM chat** — interactive chat sessions backed by Ollama (local) or any OpenAI-compatible API; memory context injected automatically
 - **Artifact versioning** — documents, memory entries, and agent prompts/config all versioned
-- **Optional backup** — sync-folder export/import with integrity checksums
 
 ## Quick Start
 
 ```bash
 pip install -e ".[dev]"
+cp .env.example .env    # optional: configure LLM provider etc.
+agent init      # create ~/.agent/ data directory and database
 agent --help
 agent web       # starts FastAPI UI at http://127.0.0.1:8000
+```
+
+### Using the LLM chat
+
+```bash
+# Local Ollama (install from https://ollama.com)
+AGENT_LLM_PROVIDER=ollama AGENT_LLM_MODEL=llama3.2 agent chat
+
+# OpenAI or any compatible API
+AGENT_LLM_PROVIDER=openai \
+  AGENT_LLM_BASE_URL=https://api.openai.com/v1 \
+  AGENT_LLM_API_KEY=sk-... \
+  agent chat
+
+# Resume an existing session
+agent chat --session-id <id>
+
+# Or use the web UI: http://127.0.0.1:8000/chat
 ```
 
 ## Data Location
@@ -27,26 +47,29 @@ All data lives in `~/.agent/` by default. Override with `AGENT_DATA_DIR` environ
 
 ```
 ~/.agent/
-  agent.db        — SQLite database (all artifacts, versions, memory, links)
-  snapshots/      — immutable content snapshots per version
-  backup/         — sync-folder export bundles
+  agent.db     — SQLite database (artifacts, versions, memory, links, chat)
+  snapshots/   — immutable content snapshots per version
 ```
 
 ## Environment Variables
 
-| Variable            | Default            | Description                |
-| ------------------- | ------------------ | -------------------------- |
-| `AGENT_DATA_DIR`    | `~/.agent`         | Root data directory        |
-| `AGENT_EMBED_MODEL` | `all-MiniLM-L6-v2` | Local embedding model name |
-| `AGENT_HOST`        | `127.0.0.1`        | Web server bind address    |
-| `AGENT_PORT`        | `8000`             | Web server port            |
+| Variable             | Default                  | Description                            |
+| -------------------- | ------------------------ | -------------------------------------- |
+| `AGENT_DATA_DIR`     | `~/.agent`               | Root data directory                    |
+| `AGENT_EMBED_MODEL`  | `all-MiniLM-L6-v2`       | Local embedding model name             |
+| `AGENT_HOST`         | `127.0.0.1`              | Web server bind address                |
+| `AGENT_PORT`         | `8000`                   | Web server port                        |
+| `AGENT_LLM_PROVIDER` | `none`                   | `none` \| `ollama` \| `openai`         |
+| `AGENT_LLM_MODEL`    | `llama3.2`               | Model name (e.g. `gpt-4o-mini`)        |
+| `AGENT_LLM_BASE_URL` | `http://localhost:11434` | Ollama or OpenAI-compatible base URL   |
+| `AGENT_LLM_API_KEY`  | _(empty)_                | API key — required for OpenAI provider |
 
 ## Architecture
 
 ```
 src/agent/
   core/        — config, storage, artifacts, versioning, documents,
-                 memory, retrieval, linking, conflicts
+                 memory, retrieval, linking, conflicts, chat, llm
   cli/         — Click command groups
   web/         — FastAPI app + Jinja2 templates
 tests/         — pytest suite per module
@@ -55,19 +78,19 @@ tests/         — pytest suite per module
 ## Running Tests
 
 ```bash
-pytest
-pytest --cov=agent tests/
+pytest                              # all tests
+pytest --cov=src/agent tests/       # with coverage report
 ```
 
 ## Roadmap
 
 ### Now (in progress / next engineering tasks)
 
-- [ ] Web route integration tests
+- [ ] Web route integration tests (`httpx.AsyncClient`)
 - [ ] CLI tests for `mem` and `link` command groups
-- [ ] Retrieval unit tests (tokenizer, embedding cache, ranking fusion)
+- [ ] LLM provider tests (mocked HTTP for `_ollama_chat` / `_openai_chat`)
 - [ ] Static type checking in CI with mypy
-- [ ] Expand CI static analysis (full Ruff rule set + Bandit)
+- [ ] Expand CI: add Bandit security checks and full Ruff rule set
 
 ### Next
 
@@ -82,7 +105,7 @@ pytest --cov=agent tests/
 
 ### Later
 
-- [ ] Scheduled memory summarisation (local LLM / Ollama)
+- [ ] Scheduled memory summarization (local LLM / Ollama)
 - [ ] LLM-assisted conflict merge suggestions
 - [ ] Multi-kind artifact linking (doc ↔ memory ↔ config)
 - [ ] Device sync via shared folder (Git, Dropbox, etc.)

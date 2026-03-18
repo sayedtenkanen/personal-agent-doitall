@@ -34,6 +34,7 @@ tests/         — pytest suite per module
 - Memory retention is indefinite — only archive flag, no hard deletes
 - Topic links are only persisted after explicit user confirmation
 - Web UI binds to `127.0.0.1` only (no auth in MVP = no external exposure)
+- Prefer to use American spelling in code and docs (e.g. "versioning", not "versionning")
 
 ## Completed Steps
 

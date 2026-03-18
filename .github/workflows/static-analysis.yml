@@ -23,9 +23,17 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e .
-          python -m pip install ruff
+          python -m pip install -e ".[dev]"
+          python -m pip install ruff bandit
 
       - name: Run Ruff (critical checks)
         run: |
           ruff check src tests --select E9,F63,F7,F82 --output-format=github
+
+      - name: Run Bandit (security scan)
+        run: |
+          bandit -r src -ll -q
+
+      - name: Run tests
+        run: |
+          pytest -q --tb=short

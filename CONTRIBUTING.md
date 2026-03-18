@@ -15,6 +15,7 @@ cd personal-agent-doitall
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
+cp .env.example .env               # edit as needed (LLM provider etc.)
 agent init                         # create ~/.agent/ data directory and DB
 agent --help
 ```
@@ -26,12 +27,12 @@ agent --help
 ```
 src/agent/
   core/         — config, storage, artifacts, versioning, documents,
-                  memory, retrieval, linking, conflicts
+                  memory, retrieval, linking, conflicts, chat, llm
   cli/          — Click command groups (agent <command>)
   web/          — FastAPI app + Jinja2 templates (localhost only)
 tests/          — pytest suite, one file per module
 .github/
-  workflows/    — CI: static-analysis.yml
+  workflows/    — CI: static-analysis.yml (Ruff + Bandit + pytest)
 ```
 
 All file paths go through `pathlib.Path`. The SQLite database lives at
@@ -53,10 +54,20 @@ All tests use a temp directory via `monkeypatch` — no shared state, no network
 
 ## Code Style
 
-- Formatter: none enforced yet (Ruff is in CI for critical checks).
-- Type hints used throughout; aim to keep new code fully annotated.
+- Formatter: `ruff format` (run manually; enforced in CI via `ruff check`).
+- Linter: `ruff check src tests` (E/F/W/I/UP rules).
+- Type checking: `mypy src` (warn-only, not yet blocking).
 - No bare `except:` — catch specific exceptions and log them.
 - No `os.path` — use `pathlib.Path` everywhere.
+- Type hints used throughout; keep new code fully annotated.
+
+```bash
+# Run all local checks before pushing
+ruff check src tests
+mypy src
+bandit -r src -ll -q
+pytest -q
+```
 
 ---
 
