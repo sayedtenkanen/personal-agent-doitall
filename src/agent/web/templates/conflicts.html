@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Conflicts{% endblock %}
+{% block content %}
+<h1>Open Conflicts</h1>
+
+{% if flash == "conflict" %}
+<div class="flash-warning">
+  ⚠ A conflict was detected on your last write. Your incoming changes are saved as a conflict copy below.
+  Review both versions and resolve when ready.
+</div>
+{% endif %}
+
+<p style="color:#555;margin-bottom:1rem;font-size:.9rem;">
+  Conflicts occur when an edit is based on an outdated version.
+  Resolve by reviewing both copies manually and marking resolved.
+</p>
+
+{% if records %}
+<table>
+  <thead>
+    <tr>
+      <th>Conflict ID</th>
+      <th>Original Artifact</th>
+      <th>Conflict Copy</th>
+      <th>Based On Version</th>
+      <th>Created</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in records %}
+  <tr>
+    <td class="mono">{{ r.id[:8] }}</td>
+    <td class="mono">{{ r.original_artifact_id[:8] }}</td>
+    <td class="mono"><span class="badge badge-yellow">{{ r.conflict_artifact_id[:8] }}</span></td>
+    <td class="mono">{{ r.base_version_id[:8] }}</td>
+    <td class="mono">{{ r.created_at | string | truncate(19, True, "") }}</td>
+    <td>
+      <form method="post" action="/conflicts/{{ r.id }}/resolve" style="display:flex;gap:.4rem;align-items:center;">
+        <input type="text" name="note" placeholder="Resolution note" style="width:180px;padding:.3rem .5rem;">
+        <button type="submit" class="btn btn-success btn-sm">Resolve</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card" style="text-align:center;color:#999;padding:2rem;">
+  No open conflicts. All clear!
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ artifact.title }}{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+  <div>
+    <h1>{{ artifact.title }}</h1>
+    <span class="mono">{{ artifact.slug }}</span>
+    &nbsp;
+    <span class="badge badge-blue">v{{ viewing_version or artifact.current_version }}</span>
+    {% if viewing_version and viewing_version != artifact.current_version %}
+    <span class="badge badge-yellow">older version</span>
+    {% endif %}
+  </div>
+  <div style="display:flex;gap:.5rem;">
+    <a href="/documents/{{ artifact.slug }}/edit" class="btn btn-primary btn-sm">Edit / Update</a>
+    <a href="/documents/{{ artifact.slug }}/history" class="btn btn-ghost btn-sm">History</a>
+    <a href="/documents" class="btn btn-ghost btn-sm">← Back</a>
+  </div>
+</div>
+
+{% if current_ver %}
+<p class="mono" style="margin-bottom:1rem;font-size:.8rem;color:#888;">
+  Version ID: {{ current_ver.id }}
+  &nbsp;|&nbsp; Created: {{ current_ver.created_at | string | truncate(19, True, "") }}
+  {% if current_ver.changelog %}&nbsp;|&nbsp; {{ current_ver.changelog }}{% endif %}
+</p>
+{% endif %}
+
+<div class="card">
+  {% if content %}
+  <pre>{{ content }}</pre>
+  {% else %}
+  <p style="color:#999;">(no content)</p>
+  {% endif %}
+</div>
+
+{% if links %}
+<div class="card">
+  <h2>Related Topics</h2>
+  <ul style="padding-left:1.25rem;">
+  {% for l in links %}
+  <li style="margin-bottom:.35rem;">
+    <span class="badge badge-green">{{ l.relation }}</span>
+    &nbsp;
+    <span class="mono">{{ l.target_id if l.source_id == artifact.id else l.source_id }}</span>
+    {% if l.evidence %}<span style="color:#999;font-size:.8rem;"> — {{ l.evidence[:80] }}</span>{% endif %}
+  </li>
+  {% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% endblock %}

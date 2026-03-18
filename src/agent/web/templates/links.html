@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Link Suggestions{% endblock %}
+{% block content %}
+<h1>Pending Link Suggestions</h1>
+<p style="color:#555;margin-bottom:1rem;font-size:.9rem;">
+  These are auto-generated topic links. Only confirmed links are persisted permanently.
+</p>
+
+{% if suggestions %}
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Source</th>
+      <th>Target</th>
+      <th>Relation</th>
+      <th>Confidence</th>
+      <th>Evidence</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for s in suggestions %}
+  <tr>
+    <td class="mono">{{ s.id[:8] }}</td>
+    <td class="mono">{{ s.source_id[:8] }}</td>
+    <td class="mono">{{ s.target_id[:8] }}</td>
+    <td><span class="badge badge-blue">{{ s.relation }}</span></td>
+    <td>{{ "%.3f" | format(s.confidence) }}</td>
+    <td style="font-size:.8rem;color:#666;">{{ (s.evidence or "")[:60] }}</td>
+    <td style="display:flex;gap:.4rem;">
+      <form method="post" action="/links/{{ s.id }}/confirm" style="display:inline;">
+        <button type="submit" class="btn btn-success btn-sm">✓ Confirm</button>
+      </form>
+      <form method="post" action="/links/{{ s.id }}/reject" style="display:inline;">
+        <button type="submit" class="btn btn-danger btn-sm">✗ Reject</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card" style="text-align:center;color:#999;padding:2rem;">
+  No pending link suggestions.
+</div>
+{% endif %}
+{% endblock %}

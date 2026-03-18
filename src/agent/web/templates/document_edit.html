@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Edit — {{ artifact.title }}{% endblock %}
+{% block content %}
+<h1>Update: {{ artifact.title }}</h1>
+<p class="mono" style="margin-bottom:1rem;font-size:.82rem;color:#888;">
+  Current version: <strong>v{{ artifact.current_version }}</strong>
+  &nbsp;|&nbsp; Version ID: {{ current_ver.id if current_ver else "—" }}
+</p>
+
+<div class="card">
+  <form method="post" action="/documents/{{ artifact.slug }}/update">
+    <input type="hidden" name="base_version_id" value="{{ current_ver.id if current_ver else '' }}">
+
+    <div class="form-group">
+      <label for="content">Content (Markdown)</label>
+      <textarea id="content" name="content" required>{{ content or '' }}</textarea>
+    </div>
+
+    <div class="row">
+      <div class="col form-group">
+        <label for="bump_kind">Version bump</label>
+        <select id="bump_kind" name="bump_kind">
+          <option value="patch">patch — typo / small fix</option>
+          <option value="minor" selected>minor — new information</option>
+          <option value="major">major — breaking / re-interpretation</option>
+        </select>
+      </div>
+      <div class="col form-group">
+        <label for="changelog">Changelog message</label>
+        <input type="text" id="changelog" name="changelog" required placeholder="Describe what changed">
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save New Version</button>
+    <a href="/documents/{{ artifact.slug }}" class="btn btn-ghost" style="margin-left:.5rem;">Cancel</a>
+  </form>
+</div>
+{% endblock %}

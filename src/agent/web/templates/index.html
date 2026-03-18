@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Personal Work Agent{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<div class="row" style="margin-bottom:1.5rem;">
+  <div class="col stat-card">
+    <div class="number">{{ doc_count }}</div>
+    <div class="label">Documents</div>
+  </div>
+  <div class="col stat-card">
+    <div class="number" style="color:{% if conflict_count > 0 %}#dc2626{% else %}#16a34a{% endif %}">{{ conflict_count }}</div>
+    <div class="label">Open Conflicts</div>
+  </div>
+  <div class="col stat-card">
+    <div class="number" style="color:#a16207">{{ pending_link_count }}</div>
+    <div class="label">Pending Links</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Recent Memory</h2>
+  {% if recent_memory %}
+  <table>
+    <thead><tr><th>Text</th><th>Tags</th><th>Created</th></tr></thead>
+    <tbody>
+    {% for e in recent_memory %}
+    <tr>
+      <td>{{ e.text[:100] }}</td>
+      <td class="mono">{{ e.tags or "—" }}</td>
+      <td class="mono">{{ e.created_at | string | truncate(19, True, "") }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:#999;font-size:.9rem;">No memory entries yet. <a href="/memory">Capture one →</a></p>
+  {% endif %}
+  <div style="margin-top:.75rem;">
+    <a href="/memory" class="btn btn-ghost btn-sm">View all memory</a>
+  </div>
+</div>
+
+<div style="display:flex;gap:1rem;margin-top:1rem;">
+  <a href="/documents/new" class="btn btn-primary">+ New Document</a>
+  {% if conflict_count > 0 %}<a href="/conflicts" class="btn btn-danger">⚠ Review Conflicts</a>{% endif %}
+  {% if pending_link_count > 0 %}<a href="/links" class="btn btn-ghost">Review Link Suggestions</a>{% endif %}
+</div>
+{% endblock %}

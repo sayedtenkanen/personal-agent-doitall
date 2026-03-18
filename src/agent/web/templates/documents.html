@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Documents{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+  <h1>Documents</h1>
+  <a href="/documents/new" class="btn btn-primary">+ New Document</a>
+</div>
+
+{% if docs %}
+<table>
+  <thead>
+    <tr><th>Slug</th><th>Title</th><th>Version</th><th>Updated</th><th></th></tr>
+  </thead>
+  <tbody>
+  {% for d in docs %}
+  <tr>
+    <td class="mono">{{ d.slug }}</td>
+    <td><a href="/documents/{{ d.slug }}">{{ d.title }}</a></td>
+    <td><span class="badge badge-blue">v{{ d.current_version }}</span></td>
+    <td class="mono">{{ d.updated_at | string | truncate(19, True, "") }}</td>
+    <td>
+      <a href="/documents/{{ d.slug }}/edit" class="btn btn-ghost btn-sm">Edit</a>
+      <a href="/documents/{{ d.slug }}/history" class="btn btn-ghost btn-sm">History</a>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card" style="text-align:center;color:#999;padding:2rem;">
+  No documents yet. <a href="/documents/new">Create your first →</a>
+</div>
+{% endif %}
+{% endblock %}

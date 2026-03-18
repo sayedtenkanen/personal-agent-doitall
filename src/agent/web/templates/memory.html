@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Memory{% endblock %}
+{% block content %}
+<h1>Memory</h1>
+
+<div class="card">
+  <h2>Capture Memory</h2>
+  <form method="post" action="/memory/add" style="display:flex;flex-direction:column;gap:.75rem;">
+    <div class="form-group" style="margin:0;">
+      <label for="text">Text</label>
+      <textarea id="text" name="text" style="min-height:80px;" required placeholder="Discussed onboarding process with new team member…"></textarea>
+    </div>
+    <div class="row">
+      <div class="col form-group" style="margin:0;">
+        <label for="tags">Tags <span style="font-weight:400;color:#999">(comma-separated)</span></label>
+        <input type="text" id="tags" name="tags" placeholder="onboarding, hr, process">
+      </div>
+      <div class="col form-group" style="margin:0;">
+        <label for="entities">Entities <span style="font-weight:400;color:#999">(people, projects)</span></label>
+        <input type="text" id="entities" name="entities" placeholder="Alice, Project-X">
+      </div>
+    </div>
+    <div>
+      <button type="submit" class="btn btn-primary">Save Memory</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Search</h2>
+  <form method="get" action="/memory" style="display:flex;gap:.5rem;">
+    <input type="text" name="q" value="{{ query or '' }}" placeholder="Search memory…" style="flex:1;">
+    <button type="submit" class="btn btn-primary">Search</button>
+    {% if query %}<a href="/memory" class="btn btn-ghost">Clear</a>{% endif %}
+  </form>
+</div>
+
+{% if entries %}
+<table>
+  <thead>
+    <tr><th>Text</th><th>Tags</th><th>Entities</th><th>Created</th></tr>
+  </thead>
+  <tbody>
+  {% for e in entries %}
+  <tr>
+    <td>{{ e.text[:120] }}{% if e.text|length > 120 %}…{% endif %}</td>
+    <td class="mono">{{ e.tags or "—" }}</td>
+    <td class="mono">{{ e.entities or "—" }}</td>
+    <td class="mono">{{ e.created_at | string | truncate(19, True, "") }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card" style="text-align:center;color:#999;padding:1.5rem;">
+  {% if query %}No results for "{{ query }}".{% else %}No memory entries yet.{% endif %}
+</div>
+{% endif %}
+{% endblock %}

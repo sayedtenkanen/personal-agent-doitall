@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}History — {{ artifact.title }}{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+  <h1>History: {{ artifact.title }}</h1>
+  <a href="/documents/{{ artifact.slug }}" class="btn btn-ghost btn-sm">← Back to document</a>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Version</th>
+      <th>Bump</th>
+      <th>Changelog</th>
+      <th>Version ID</th>
+      <th>Date</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for v in versions %}
+  <tr>
+    <td><span class="badge {% if v.semver == artifact.current_version %}badge-green{% else %}badge-blue{% endif %}">v{{ v.semver }}</span>
+      {% if v.semver == artifact.current_version %}<span style="font-size:.75rem;color:#15803d;"> current</span>{% endif %}
+    </td>
+    <td class="mono">{{ v.bump_kind or "—" }}</td>
+    <td>{{ v.changelog or "—" }}</td>
+    <td class="mono">{{ v.id[:8] }}</td>
+    <td class="mono">{{ v.created_at | string | truncate(19, True, "") }}</td>
+    <td>
+      <a href="/documents/{{ artifact.slug }}?version={{ v.semver }}" class="btn btn-ghost btn-sm">View</a>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
