@@ -12,6 +12,7 @@ Embedding model is loaded lazily; first call triggers the download/cache.
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
 from typing import Optional
@@ -19,6 +20,9 @@ from typing import Optional
 import numpy as np
 
 from agent.core.memory import MemoryEntry, list_memory
+
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -144,8 +148,11 @@ def search(
             _store_embedding(session, entries[i], vec)
         try:
             session.flush()
-        except Exception:
-            pass  # best-effort caching; retrieval still works from in-memory vecs
+        except Exception as exc:
+            logger.warning(
+                "Embedding cache flush failed; continuing with in-memory vectors: %s",
+                exc,
+            )
 
     sem_scores = []
     for i, e in enumerate(entries):
