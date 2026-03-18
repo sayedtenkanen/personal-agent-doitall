@@ -58,3 +58,39 @@ tests/         — pytest suite per module
 pytest
 pytest --cov=agent tests/
 ```
+
+## Roadmap
+
+### Now (in progress / next engineering tasks)
+
+- [ ] Web route integration tests
+- [ ] CLI tests for `mem` and `link` command groups
+- [ ] Retrieval unit tests (tokenizer, embedding cache, ranking fusion)
+- [ ] Static type checking in CI with mypy
+- [ ] Expand CI static analysis (full Ruff rule set + Bandit)
+
+### Next
+
+- [ ] Backup and restore commands (`agent backup` / `agent restore`)
+- [ ] PDF/DOCX extraction pipeline on import
+- [ ] Agent prompt/config versioning commands (`ArtifactKind.CONFIG`)
+- [ ] SQLite FTS5 full-text search index
+- [ ] Runtime input validation hardening for all CLI and web entry points
+- [ ] Structured logging with error IDs (observability baseline)
+- [ ] Dependency lockfile strategy for reproducible builds
+- [ ] Release workflow (version tagging + changelog generation)
+
+### Later
+
+- [ ] Scheduled memory summarisation (local LLM / Ollama)
+- [ ] LLM-assisted conflict merge suggestions
+- [ ] Multi-kind artifact linking (doc ↔ memory ↔ config)
+- [ ] Device sync via shared folder (Git, Dropbox, etc.)
+- [ ] Web UI authentication (passphrase/token for networked use)
+- [ ] Plugin/extension system for custom artifact kinds
+- [ ] Structured entity extraction (NLP auto-tagging)
+- [ ] Calendar/task integration (local planner layer)
+- [ ] Interactive TUI (textual / prompt_toolkit dashboard)
+- [ ] Export to Markdown vault (Obsidian/Logseq interop)
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) to pick up a task and contribute.
