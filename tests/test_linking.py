@@ -2,6 +2,9 @@
 Tests for topic-link suggestion and confirmation workflow.
 """
 
+import sys
+import types
+
 import pytest
 from agent.core.storage import init_db, get_session
 from agent.core.artifacts import create_artifact, ArtifactKind
@@ -10,6 +13,7 @@ from agent.core.linking import (
     confirm_suggestion,
     reject_suggestion,
     list_confirmed_links,
+    suggest_links,
     SuggestedLink,
     TopicLink,
 )
@@ -115,3 +119,117 @@ def test_link_not_persisted_without_confirmation():
 
     # Must be empty — not confirmed.
     assert len(links) == 0
+
+
+def test_confirm_suggestion_returns_none_for_missing_or_actioned():
+    a1_id, a2_id = _make_artifacts()
+    sug_id = _make_suggestion(a1_id, a2_id)
+
+    with get_session() as session:
+        assert confirm_suggestion(session, "missing-id") is None
+
+    with get_session() as session:
+        ok = reject_suggestion(session, sug_id)
+        assert ok is True
+
+    with get_session() as session:
+        assert confirm_suggestion(session, sug_id) is None
+
+
+def test_reject_suggestion_returns_false_for_missing_or_actioned():
+    a1_id, a2_id = _make_artifacts()
+    sug_id = _make_suggestion(a1_id, a2_id)
+
+    with get_session() as session:
+        link = confirm_suggestion(session, sug_id)
+        assert link is not None
+
+    with get_session() as session:
+        assert reject_suggestion(session, "missing-id") is False
+        assert reject_suggestion(session, sug_id) is False
+
+
+def test_suggest_links_returns_empty_for_unknown_source():
+    with get_session() as session:
+        suggestions = suggest_links(session, source_artifact_id="missing-id")
+    assert suggestions == []
+
+
+def test_suggest_links_creates_new_pending_with_mocked_model(monkeypatch):
+    class _FakeSentenceTransformer:
+        def __init__(self, _model_name):
+            pass
+
+        def encode(self, texts, normalize_embeddings=True, show_progress_bar=False):
+            # Source ranks highest with "best", then "mid", then "low".
+            vectors = []
+            for text in texts:
+                if "source" in text:
+                    vectors.append([1.0, 0.0])
+                elif "best" in text:
+                    vectors.append([0.9, 0.1])
+                elif "mid" in text:
+                    vectors.append([0.6, 0.4])
+                else:
+                    vectors.append([0.1, 0.9])
+            return vectors
+
+    fake_module = types.SimpleNamespace(SentenceTransformer=_FakeSentenceTransformer)
+    monkeypatch.setitem(sys.modules, "sentence_transformers", fake_module)
+
+    with get_session() as session:
+        source, _ = create_artifact(
+            session,
+            kind=ArtifactKind.DOCUMENT,
+            title="Source",
+            slug="source",
+            content="source text",
+        )
+        best, _ = create_artifact(
+            session,
+            kind=ArtifactKind.DOCUMENT,
+            title="Best",
+            slug="best",
+            content="best match",
+        )
+        mid, _ = create_artifact(
+            session,
+            kind=ArtifactKind.DOCUMENT,
+            title="Mid",
+            slug="mid",
+            content="mid match",
+        )
+        low, _ = create_artifact(
+            session,
+            kind=ArtifactKind.DOCUMENT,
+            title="Low",
+            slug="low",
+            content="low match",
+        )
+
+        # Existing confirmed and pending pairs should be skipped.
+        session.add(
+            TopicLink(
+                source_id=source.id,
+                target_id=best.id,
+                relation="relates_to",
+                evidence="seed",
+            )
+        )
+        session.add(
+            SuggestedLink(
+                source_id=source.id,
+                target_id=mid.id,
+                relation="relates_to",
+                confidence=0.5,
+                evidence="seed pending",
+                status="pending",
+            )
+        )
+        session.flush()
+
+        suggestions = suggest_links(session, source_artifact_id=source.id, top_k=5)
+
+    assert len(suggestions) == 1
+    assert suggestions[0].target_id == low.id
+    assert suggestions[0].status == "pending"
